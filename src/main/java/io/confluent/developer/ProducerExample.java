@@ -59,6 +59,5 @@ public class ProducerExample {
             System.out.printf("%s events were produced to topic %s%n", numMessages, topic);
             System.out.println("Finished producing messages.");
         }
-        // If the program still hangs, check your broker connectivity and authentication configs.
     }
 }
