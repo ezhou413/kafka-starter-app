@@ -41,23 +41,24 @@ public class StreamsExample {
             System.exit(1);
         }
 
-        // final String defaultKey = "key";
+        // String[] keys = {"a", "b", "c", "d", "e"};
         // // produce words to the input topic
         // String[] words = {"book", "batteries", "and", "could", "potato", "cat", "a", "a", "a"};
         // try (final Producer<String, String> producer = new KafkaProducer<>(props)) {
         //     final Random rnd = new Random();
-        //     final int numMessages = 100;
+        //     final int numMessages = 500;
         //     System.out.println("Starting to produce messages...");
         //     for (int i = 0; i < numMessages; i++) {
+        //         String key = keys[rnd.nextInt(keys.length)];
         //         String word = words[rnd.nextInt(words.length)];
 
         //         producer.send(
-        //                 new ProducerRecord<>(inTopic, defaultKey, word),
+        //                 new ProducerRecord<>(inTopic, key, word),
         //                 (event, ex) -> {
         //                     if (ex != null)
         //                         ex.printStackTrace();
         //                     else
-        //                         System.out.printf("Produced event to topic %s: key = %-10s value = %s%n", inTopic, defaultKey, word);
+        //                         System.out.printf("Produced event to topic %s: key = %-10s value = %s%n", inTopic, key, word);
         //                 });
         //     }
         //     // Flush to ensure all messages are sent before closing

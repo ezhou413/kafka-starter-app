@@ -8,6 +8,7 @@ import java.util.regex.Pattern;
 
 import org.apache.kafka.common.serialization.Serdes;
 import org.apache.kafka.streams.KafkaStreams;
+import org.apache.kafka.streams.StreamsConfig;
 import org.apache.kafka.streams.Topology;
 import org.apache.kafka.streams.state.KeyValueStore;
 import org.apache.kafka.streams.state.Stores;
@@ -22,6 +23,8 @@ public class StreamsPAPIExample {
 
     public static void main(String[] args) {
         final Properties props = new Properties();
+        props.put(StreamsConfig.DEFAULT_KEY_SERDE_CLASS_CONFIG, Serdes.String().getClass().getName());
+        props.put(StreamsConfig.DEFAULT_VALUE_SERDE_CLASS_CONFIG, Serdes.String().getClass().getName());
 
         if (args.length < 1) {
             System.err.println("Please provide the path to the config.properties file as the first argument.");
@@ -61,6 +64,7 @@ public class StreamsPAPIExample {
         public void process(Record<String, String> record) {
             String value = record.value();
             if (value == null) return;
+            System.out.println("Processing: " + value); 
             Arrays.stream(pattern.split(value.toLowerCase()))
                 .filter(word -> !word.isEmpty())
                 .forEach(word -> {
@@ -68,8 +72,10 @@ public class StreamsPAPIExample {
                     if (count == null) count = 0L;
                     count += 1;
                     kvStore.put(word, count);
+                    System.out.println("Forwarding: " + word + " -> " + count); 
                     context.forward(new Record<>(word, count, record.timestamp()));
                 });
+            context.commit();
         }
     }
 }
