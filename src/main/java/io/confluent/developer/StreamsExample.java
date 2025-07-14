@@ -2,15 +2,11 @@ package io.confluent.developer;
 
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.Properties;
-import java.util.Random;
-import java.util.regex.Pattern;
 
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerRecord;
-// import io.confluent.common.utils.testUtils;
 import org.apache.kafka.common.serialization.Serdes;
 import org.apache.kafka.streams.KafkaStreams;
 import org.apache.kafka.streams.StreamsBuilder;
@@ -21,11 +17,14 @@ import org.apache.kafka.streams.kstream.Produced;
 
 public class StreamsExample {
 
-    static final String inTopic = "topic_1";
-    static final String outTopic = "topic_2";
+    static final String inTopic1 = "topic_1";
+    static final String inTopic2 = "topic_3";
+    static final String outTopic = "joined_topic";
 
     public static void main(String[] args) {
         final Properties props = new Properties();
+        props.put(StreamsConfig.DEFAULT_KEY_SERDE_CLASS_CONFIG, Serdes.String().getClass().getName());
+        props.put(StreamsConfig.DEFAULT_VALUE_SERDE_CLASS_CONFIG, Serdes.String().getClass().getName());
 
         if (args.length < 1) {
             System.err.println("Please provide the path to the config.properties file as the first argument.");
@@ -41,45 +40,20 @@ public class StreamsExample {
             System.exit(1);
         }
 
-        // String[] keys = {"a", "b", "c", "d", "e"};
-        // // produce words to the input topic
-        // String[] words = {"book", "batteries", "and", "could", "potato", "cat", "a", "a", "a"};
-        // try (final Producer<String, String> producer = new KafkaProducer<>(props)) {
-        //     final Random rnd = new Random();
-        //     final int numMessages = 500;
-        //     System.out.println("Starting to produce messages...");
-        //     for (int i = 0; i < numMessages; i++) {
-        //         String key = keys[rnd.nextInt(keys.length)];
-        //         String word = words[rnd.nextInt(words.length)];
-
-        //         producer.send(
-        //                 new ProducerRecord<>(inTopic, key, word),
-        //                 (event, ex) -> {
-        //                     if (ex != null)
-        //                         ex.printStackTrace();
-        //                     else
-        //                         System.out.printf("Produced event to topic %s: key = %-10s value = %s%n", inTopic, key, word);
-        //                 });
-        //     }
-        //     // Flush to ensure all messages are sent before closing
-        //     producer.flush();
-        //     System.out.printf("%s events were produced to topic %s%n", numMessages, inTopic);
-        //     System.out.println("Finished producing messages.");
-        // }
-
         final StreamsBuilder builder = new StreamsBuilder();
 
-        final KStream<String, String> text = builder.stream(inTopic);
+        final KTable<String, String> table1 = builder.table(inTopic1);
+        final KTable<String, String> table2 = builder.table(inTopic2);
 
-        final Pattern pattern = Pattern.compile("\\W+", Pattern.UNICODE_CHARACTER_CLASS);
+        // Perform an inner join on the keys
+        KTable<String, String> joined = table1.join(
+            table2,
+            (value1, value2) -> value1 + "-" + value2
+        );
 
-        final KTable<String, Long> wordCounts = text
-        .flatMapValues(value -> Arrays.asList(pattern.split(value.toLowerCase())))
-        .groupBy((keyIgnored, word) -> word)
-        .count();
-
-        // Write the `KTable<String, Long>` to the output topic.
-        wordCounts.toStream().to(outTopic, Produced.with(Serdes.String(), Serdes.Long()));
+        // Add logging to debug output
+        joined.toStream().peek((key, value) -> System.out.println("Joined: " + key + " -> " + value))
+            .to(outTopic, Produced.with(Serdes.String(), Serdes.String()));
 
         final KafkaStreams streams = new KafkaStreams(builder.build(), props);
         streams.start();

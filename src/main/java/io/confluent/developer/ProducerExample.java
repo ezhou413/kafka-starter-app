@@ -33,25 +33,25 @@ public class ProducerExample {
             System.exit(1);
         }
 
-        final String topic = "purchases";
+        final String topic = "topic_3";
 
         String[] users = {"eabara", "jsmith", "sgarcia", "jbernard", "htanaka", "awalther", "evan"};
-        String[] items = {"book", "alarm clock", "t-shirts", "gift card", "batteries"};
+        String[] words = {"book", "batteries", "and", "could", "potato", "cat", "a", "a", "a"};
         try (final Producer<String, String> producer = new KafkaProducer<>(props)) {
             final Random rnd = new Random();
-            final int numMessages = 30;
+            final int numMessages = 470;
             System.out.println("Starting to produce messages...");
             for (int i = 0; i < numMessages; i++) {
                 String user = users[rnd.nextInt(users.length)];
-                String item = items[rnd.nextInt(items.length)];
+                String word = words[rnd.nextInt(words.length)];
 
                 producer.send(
-                        new ProducerRecord<>(topic, user, item),
+                        new ProducerRecord<>(topic, word, user),
                         (event, ex) -> {
                             if (ex != null)
                                 ex.printStackTrace();
                             else
-                                System.out.printf("Produced event to topic %s: key = %-10s value = %s%n", topic, user, item);
+                                System.out.printf("Produced event to topic %s: key = %-10s value = %s%n", topic, word, user);
                         });
             }
             // Flush to ensure all messages are sent before closing
