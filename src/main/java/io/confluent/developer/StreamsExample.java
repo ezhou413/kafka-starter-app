@@ -17,7 +17,7 @@ import org.apache.kafka.streams.kstream.Produced;
 
 public class StreamsExample {
 
-    static final String inTopic1 = "topic_1";
+    static final String inTopic1 = "topic_2";
     static final String inTopic2 = "topic_3";
     static final String outTopic = "joined_topic";
 

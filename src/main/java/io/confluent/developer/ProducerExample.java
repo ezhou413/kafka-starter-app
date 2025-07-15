@@ -16,7 +16,7 @@ import static org.apache.kafka.clients.producer.ProducerConfig.VALUE_SERIALIZER_
 
 public class ProducerExample {
 
-    public static void main(final String[] args) {
+    public static void main(final String[] args) throws InterruptedException{
         final Properties props = new Properties();
 
         if (args.length < 1) {
@@ -33,15 +33,16 @@ public class ProducerExample {
             System.exit(1);
         }
 
-        final String topic = "topic_3";
+        final String topic = "evan_rebalance_topic";
 
         String[] users = {"eabara", "jsmith", "sgarcia", "jbernard", "htanaka", "awalther", "evan"};
         String[] words = {"book", "batteries", "and", "could", "potato", "cat", "a", "a", "a"};
         try (final Producer<String, String> producer = new KafkaProducer<>(props)) {
             final Random rnd = new Random();
-            final int numMessages = 470;
+            // final int numMessages = 470;
             System.out.println("Starting to produce messages...");
-            for (int i = 0; i < numMessages; i++) {
+            int i = 0;
+            while (true) {
                 String user = users[rnd.nextInt(users.length)];
                 String word = words[rnd.nextInt(words.length)];
 
@@ -53,11 +54,14 @@ public class ProducerExample {
                             else
                                 System.out.printf("Produced event to topic %s: key = %-10s value = %s%n", topic, word, user);
                         });
+                i++;
+
+                Thread.sleep(200);
             }
-            // Flush to ensure all messages are sent before closing
-            producer.flush();
-            System.out.printf("%s events were produced to topic %s%n", numMessages, topic);
-            System.out.println("Finished producing messages.");
+            // // Flush to ensure all messages are sent before closing
+            // producer.flush();
+            // System.out.printf("%s events were produced to topic %s%n", numMessages, topic);
+            // System.out.println("Finished producing messages.");
         }
     }
 }
