@@ -27,6 +27,9 @@ public class ConsumerRebalanceExample {
         props.setProperty(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
         props.setProperty(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
 
+        // props.setProperty("group.protocol", "consumer");
+        props.setProperty("group.protocol", "classic");
+
         if (args.length < 1) {
             System.err.println("Please provide the path to the config.properties file as the first argument.");
             System.exit(1);

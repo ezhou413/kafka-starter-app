@@ -56,7 +56,7 @@ public class ProducerExample {
                         });
                 i++;
 
-                Thread.sleep(200);
+                Thread.sleep(100);
             }
             // // Flush to ensure all messages are sent before closing
             // producer.flush();
