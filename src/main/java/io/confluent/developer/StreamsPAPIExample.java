@@ -2,9 +2,7 @@ package io.confluent.developer;
 
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.Properties;
-import java.util.regex.Pattern;
 
 import org.apache.kafka.common.serialization.Serdes;
 import org.apache.kafka.streams.KafkaStreams;
@@ -17,9 +15,11 @@ import org.apache.kafka.streams.processor.api.ProcessorContext;
 import org.apache.kafka.streams.processor.api.Record;
 
 public class StreamsPAPIExample {
-    static final String inTopic = "topic_1";
-    static final String outTopic = "topic_2";
-    static final String STORE_NAME = "word-counts-store";
+    static final String topic1 = "evan_topic_1";
+    static final String topic2 = "evan_topic_2";
+    static final String outTopic = "papi_join_topic";
+    static final String STORE1_NAME = "topic2-store";
+    static final String STORE2_NAME = "topic3-store";
 
     public static void main(String[] args) {
         final Properties props = new Properties();
@@ -41,40 +41,92 @@ public class StreamsPAPIExample {
 
         final Topology topology = new Topology();
 
-        topology.addSource("Source", inTopic)
-                .addProcessor("WordCountProcessor", WordCountProcessor::new, "Source")
-                .addStateStore(Stores.keyValueStoreBuilder(Stores.inMemoryKeyValueStore(STORE_NAME), Serdes.String(),Serdes.Long()), "WordCountProcessor")
-                .addSink("Sink", outTopic, Serdes.String().serializer(), Serdes.Long().serializer(), "WordCountProcessor");
+        // Add sources for both topics with different processors to track the source
+        topology.addSource("Source1", topic1)
+                .addProcessor("Topic1Processor", Topic1Processor::new, "Source1")
+                .addSource("Source2", topic2)
+                .addProcessor("Topic2Processor", Topic2Processor::new, "Source2")
+                .addProcessor("JoinProcessor", JoinProcessor::new, "Topic1Processor", "Topic2Processor")
+                .addStateStore(Stores.keyValueStoreBuilder(Stores.inMemoryKeyValueStore(STORE1_NAME), Serdes.String(), Serdes.String()), "JoinProcessor")
+                .addStateStore(Stores.keyValueStoreBuilder(Stores.inMemoryKeyValueStore(STORE2_NAME), Serdes.String(), Serdes.String()), "JoinProcessor")
+                .addSink("Sink", outTopic, Serdes.String().serializer(), Serdes.String().serializer(), "JoinProcessor");
 
         final KafkaStreams streams = new KafkaStreams(topology, props);
         streams.start();
         Runtime.getRuntime().addShutdownHook(new Thread(streams::close));
     }
 
-    static class WordCountProcessor implements Processor<String, String, String, Long> {
-        private ProcessorContext<String, Long> context;
-        private KeyValueStore<String, Long> kvStore;
-        private final Pattern pattern = Pattern.compile("\\W+", Pattern.UNICODE_CHARACTER_CLASS);
+    static class Topic1Processor implements Processor<String, String, String, String> {
+        private ProcessorContext<String, String> context;
 
-        public void init(ProcessorContext<String, Long> context) {
+        public void init(ProcessorContext<String, String> context) {
             this.context = context;
-            this.kvStore = context.getStateStore(STORE_NAME);
         }
 
         public void process(Record<String, String> record) {
+            String markedValue = "TOPIC1:" + record.value();
+            context.forward(new Record<>(record.key(), markedValue, record.timestamp()));
+        }
+    }
+
+    static class Topic2Processor implements Processor<String, String, String, String> {
+        private ProcessorContext<String, String> context;
+
+        public void init(ProcessorContext<String, String> context) {
+            this.context = context;
+        }
+
+        public void process(Record<String, String> record) {
+            String markedValue = "TOPIC2:" + record.value();
+            context.forward(new Record<>(record.key(), markedValue, record.timestamp()));
+        }
+    }
+
+    static class JoinProcessor implements Processor<String, String, String, String> {
+        private ProcessorContext<String, String> context;
+        private KeyValueStore<String, String> store1;
+        private KeyValueStore<String, String> store2;
+
+        public void init(ProcessorContext<String, String> context) {
+            this.context = context;
+            this.store1 = context.getStateStore(STORE1_NAME);
+            this.store2 = context.getStateStore(STORE2_NAME);
+        }
+
+        public void process(Record<String, String> record) {
+            String key = record.key();
             String value = record.value();
-            if (value == null) return;
-            System.out.println("Processing: " + value); 
-            Arrays.stream(pattern.split(value.toLowerCase()))
-                .filter(word -> !word.isEmpty())
-                .forEach(word -> {
-                    Long count = kvStore.get(word);
-                    if (count == null) count = 0L;
-                    count += 1;
-                    kvStore.put(word, count);
-                    System.out.println("Forwarding: " + word + " -> " + count); 
-                    context.forward(new Record<>(word, count, record.timestamp()));
-                });
+            
+            System.out.println("Processing record: key=" + key + ", value=" + value);
+            
+            if (value.startsWith("TOPIC2:")) {
+                // from topic_2
+                String actualValue = value.substring(7); // remove prefix
+                store1.put(key, actualValue);
+                System.out.println("stored in store1: " + key + " -> " + actualValue);
+                
+                // check if record exists intopic_3
+                String valueFromTopic3 = store2.get(key);
+                if (valueFromTopic3 != null) {
+                    String joinedValue = actualValue + "-" + valueFromTopic3;
+                    System.out.println("key: " + key + ", joined value: " + joinedValue);
+                    context.forward(new Record<>(key, joinedValue, record.timestamp()));
+                }
+            } else if (value.startsWith("TOPIC3:")) {
+                // from topic_3
+                String actualValue = value.substring(7); // remove prefix
+                store2.put(key, actualValue);
+                System.out.println("stored in store2: " + key + " -> " + actualValue);
+                
+                // check if record exists in topic_2
+                String valueFromTopic2 = store1.get(key);
+                if (valueFromTopic2 != null) {
+                    String joinedValue = valueFromTopic2 + "-" + actualValue;
+                    System.out.println("key: " + key + ", joined value: " + joinedValue);
+                    context.forward(new Record<>(key, joinedValue, record.timestamp()));
+                }
+            }
+            
             context.commit();
         }
     }

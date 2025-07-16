@@ -33,26 +33,29 @@ public class ProducerExample {
             System.exit(1);
         }
 
-        final String topic = "evan_rebalance_topic";
+        final String topic = "evan_topic_2";
 
-        String[] users = {"eabara", "jsmith", "sgarcia", "jbernard", "htanaka", "awalther", "evan"};
-        String[] words = {"book", "batteries", "and", "could", "potato", "cat", "a", "a", "a"};
+        // String[] users = {"eabara", "jsmith", "sgarcia", "jbernard", "htanaka", "awalther", "evan"};
+        // String[] words = {"book", "batteries", "and", "could", "potato", "cat", "a", "a", "a"};
         try (final Producer<String, String> producer = new KafkaProducer<>(props)) {
             final Random rnd = new Random();
             // final int numMessages = 470;
             System.out.println("Starting to produce messages...");
             int i = 0;
             while (true) {
-                String user = users[rnd.nextInt(users.length)];
-                String word = words[rnd.nextInt(words.length)];
+                // String user = users[rnd.nextInt(users.length)];
+                // String word = words[rnd.nextInt(words.length)];
+
+                String key = "topic 1 key " + i;
+                String value = "topic 2 value " + i;
 
                 producer.send(
-                        new ProducerRecord<>(topic, word, user),
+                        new ProducerRecord<>(topic, key, value),
                         (event, ex) -> {
                             if (ex != null)
                                 ex.printStackTrace();
                             else
-                                System.out.printf("Produced event to topic %s: key = %-10s value = %s%n", topic, word, user);
+                                System.out.printf("Produced event to topic %s: key = %-10s value = %s%n", topic, key, value);
                         });
                 i++;
 
